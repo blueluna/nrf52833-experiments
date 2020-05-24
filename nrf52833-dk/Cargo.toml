@@ -1,0 +1,21 @@
+[package]
+name = "nrf52833-dk"
+version = "0.0.1"
+authors = [
+    "Erik Svensson <erik.public@gmail.com>"
+    ]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+nrf52833-pac = { git = "https://github.com/nrf-rs/nrf52833-pac.git" }
+nrf52833-hal = { git = "https://github.com/blueluna/nrf-hal.git", branch = "nrf52833" }
+cortex-m = "0.6"
+cortex-m-rt = "0.6"
+panic-itm = "0.4"
+cortex-m-rtfm = "0.5"
+
+[dependencies.embedded-hal]
+features = ["unproven"]
+version = "0.2.3"
