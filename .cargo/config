@@ -5,4 +5,4 @@ target = "thumbv7em-none-eabihf"
 rustflags = [
     "-C", "link-arg=-Tlink.x",
 ]
-runner = "gdb-multiarch -q -x jlink.gdb"
+runner = "gdb -q -x jlink.gdb"

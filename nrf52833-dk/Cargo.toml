@@ -10,11 +10,13 @@ edition = "2018"
 
 [dependencies]
 nrf52833-pac = { git = "https://github.com/nrf-rs/nrf52833-pac.git" }
-nrf52833-hal = { git = "https://github.com/blueluna/nrf-hal.git", branch = "nrf52833" }
+nrf52833-hal = { git = "https://github.com/nrf-rs/nrf-hal.git" }
 cortex-m = "0.6"
 cortex-m-rt = "0.6"
 panic-itm = "0.4"
 cortex-m-rtfm = "0.5"
+embedded-graphics = "0.6"
+profont = "0.4.0"
 
 [dependencies.embedded-hal]
 features = ["unproven"]

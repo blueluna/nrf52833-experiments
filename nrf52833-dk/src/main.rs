@@ -1,6 +1,10 @@
 #![no_main]
 #![no_std]
 
+mod spi;
+mod st7735s;
+mod extended_enum;
+
 use core::fmt::Write;
 
 #[allow(unused_imports)]
@@ -10,13 +14,27 @@ use cortex_m::{iprintln, peripheral::ITM};
 
 use rtfm::app;
 
-use embedded_hal::digital::v2::{InputPin, OutputPin};
+use embedded_hal::{
+    digital::v2::{InputPin, OutputPin}
+};
 
 use crate::hal::target as pac;
 use nrf52833_hal as hal;
 
-use hal::{clocks, gpio, timer::Instance, uarte};
-use pac::{RTC0, RTC1, TIMER0, TIMER1, UARTE0};
+use hal::{clocks, gpio, timer::Instance, uarte, spim};
+use pac::{RTC0, RTC1, TIMER0, TIMER1, UARTE0, SPIM3};
+
+use embedded_graphics::{
+    drawable::Drawable,
+    geometry::Point,
+    pixelcolor::{RgbColor, Rgb565},
+    primitives::{Primitive, rectangle::Rectangle},
+    style::PrimitiveStyleBuilder,
+};
+use embedded_graphics::{ egtext, text_style };
+use profont::ProFont12Point;
+
+use st7735s::{Orientation};
 
 #[app(device = crate::hal::target, peripherals = true)]
 const APP: () = {
@@ -41,6 +59,8 @@ const APP: () = {
         #[init(0)]
         timer_1_last: u32,
         uart: uarte::Uarte<UARTE0>,
+        delay: hal::Delay,
+        lcd: st7735s::ST7735<spi::Spim<SPIM3>>
     }
 
     #[init]
@@ -110,6 +130,21 @@ const APP: () = {
         );
 
         let mut itm = cx.core.ITM;
+
+        iprintln!(&mut itm.stim[0], "Init LCD ...");
+
+        let delay = hal::Delay::new(cx.core.SYST);
+        let spi = spi::Spim::new(cx.device.SPIM3,
+            spi::Pins {
+                sck: port0.p0_27.into_push_pull_output(gpio::Level::Low).degrade(),
+                mosi: Some(port0.p0_26.into_push_pull_output(gpio::Level::Low).degrade()),
+                miso: None,
+                csn: Some(port0.p0_21.into_push_pull_output(gpio::Level::Low).degrade()),
+                dcx: Some(port0.p0_22.into_push_pull_output(gpio::Level::High).degrade()),
+            }, spim::Frequency::M4, spim::MODE_0, 0);
+        
+        let lcd = st7735s::ST7735::new(spi, false, true, 80, 160);
+
         iprintln!(&mut itm.stim[0], "Initialization");
         init::LateResources {
             itm,
@@ -126,6 +161,8 @@ const APP: () = {
             rtc_0,
             rtc_1,
             uart,
+            delay,
+            lcd,
         }
     }
 
@@ -173,12 +210,28 @@ const APP: () = {
         *cx.resources.timer_1_last = timer_now;
     }
 
-    #[idle(resources = [button_2, led_2, uart])]
+    #[idle(resources = [button_2, led_2, uart, lcd, delay])]
     fn idle(cx: idle::Context) -> ! {
         let button_2 = cx.resources.button_2;
         let led_2 = cx.resources.led_2;
         let uart = cx.resources.uart;
+        let lcd = cx.resources.lcd;
 
+        let _ = lcd.init(cx.resources.delay);
+        let dx = (st7735s::ST7735_ROWS - 160) / 2;
+        let dy = (st7735s::ST7735_COLS - 80) / 2;
+        lcd.set_offset(dx, dy);
+        let _ = lcd.set_orientation(Orientation::Landscape);
+        let style = PrimitiveStyleBuilder::new().fill_color(Rgb565::BLACK).build();
+        let backdrop = Rectangle::new(Point::new(0, 0), Point::new(160, 81)).into_styled(style);
+        let _ = backdrop.draw(lcd);
+        let _ = egtext!(
+            text = "Rust on nRF52833-DK\n\n",
+            top_left = (5, 0),
+            style = text_style!(font = ProFont12Point, text_color = Rgb565::new(0xff, 0x8c, 0x00))
+        )
+        .draw(lcd);
+        
         let _ = write!(uart, "Idle\r\n");
 
         loop {
