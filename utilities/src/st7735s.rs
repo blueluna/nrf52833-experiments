@@ -255,9 +255,7 @@ where
     }
 }
 
-extern crate embedded_graphics;
-
-use self::embedded_graphics::{
+use embedded_graphics::{
     drawable::Pixel,
     pixelcolor::{
         raw::{RawData, RawU16},

@@ -1,16 +1,13 @@
 #![no_main]
 #![no_std]
 
-mod spi;
-mod st7735s;
-mod extended_enum;
+use utilities::{spi, st7735s};
 
 use core::fmt::Write;
 
-#[allow(unused_imports)]
-use panic_itm;
+use panic_rtt_target as _;
 
-use cortex_m::{iprintln, peripheral::ITM};
+use rtt_target::{rprintln, rtt_init_print};
 
 use rtfm::app;
 
@@ -43,7 +40,6 @@ const APP: () = {
         button_2: gpio::Pin<gpio::Input<gpio::PullUp>>,
         button_3: gpio::Pin<gpio::Input<gpio::PullUp>>,
         button_4: gpio::Pin<gpio::Input<gpio::PullUp>>,
-        itm: ITM,
         led_1: gpio::Pin<gpio::Output<gpio::PushPull>>,
         led_2: gpio::Pin<gpio::Output<gpio::PushPull>>,
         led_3: gpio::Pin<gpio::Output<gpio::PushPull>>,
@@ -69,6 +65,9 @@ const APP: () = {
         let _clocks = clocks::Clocks::new(cx.device.CLOCK)
             .set_lfclk_src_external(clocks::LfOscConfiguration::NoExternalNoBypass)
             .start_lfclk();
+
+        rtt_init_print!();
+        rprintln!("Initialize...");
 
         cx.device.TIMER0.set_periodic();
         cx.device.TIMER0.enable_interrupt();
@@ -129,10 +128,6 @@ const APP: () = {
             uarte::Baudrate::BAUD115200,
         );
 
-        let mut itm = cx.core.ITM;
-
-        iprintln!(&mut itm.stim[0], "Init LCD ...");
-
         let delay = hal::Delay::new(cx.core.SYST);
         let spi = spi::Spim::new(cx.device.SPIM3,
             spi::Pins {
@@ -145,9 +140,9 @@ const APP: () = {
         
         let lcd = st7735s::ST7735::new(spi, false, true, 80, 160);
 
-        iprintln!(&mut itm.stim[0], "Initialization");
+        rprintln!("... done");
+
         init::LateResources {
-            itm,
             timer_0: cx.device.TIMER0,
             timer_1: cx.device.TIMER1,
             button_1,
@@ -166,14 +161,14 @@ const APP: () = {
         }
     }
 
-    #[task(binds = TIMER0, resources = [itm, rtc_1, rtc_1_last, timer_0, led_3, on_off])]
+    #[task(binds = TIMER0, resources = [rtc_1, rtc_1_last, timer_0, led_3, on_off])]
     fn timer(cx: timer::Context) {
         cx.resources.timer_0.timer_reset_event();
-        let itm_port = &mut cx.resources.itm.stim[0];
         let rtc_last = *cx.resources.rtc_1_last;
         let rtc_now = cx.resources.rtc_1.get_counter();
         let elapsed = rtc_now.saturating_sub(rtc_last);
-        iprintln!(itm_port, "Timer 0: {}", elapsed);
+        rprintln!("Timer 0: {}", elapsed);
+
         if *cx.resources.on_off {
             let _ = cx.resources.led_3.set_low();
         } else {
@@ -183,17 +178,16 @@ const APP: () = {
         *cx.resources.rtc_1_last = rtc_now;
     }
 
-    #[task(binds = RTC0, resources = [itm, rtc_0, timer_1, timer_1_last, button_4, led_4])]
+    #[task(binds = RTC0, resources = [rtc_0, timer_1, timer_1_last, button_4, led_4])]
     fn rtc(cx: rtc::Context) {
         let _ = cx
             .resources
             .rtc_0
             .get_event_triggered(hal::rtc::RtcInterrupt::Tick, true);
-        let itm_port = &mut cx.resources.itm.stim[0];
         let timer_last = *cx.resources.timer_1_last;
         let timer_now = cx.resources.timer_1.read_counter();
         let elapsed = timer_now.saturating_sub(timer_last);
-        iprintln!(itm_port, "RTC 0: {}", elapsed);
+        rprintln!("RTC 0: {}", elapsed);
 
         let button_4 = cx.resources.button_4;
         let led_4 = cx.resources.led_4;

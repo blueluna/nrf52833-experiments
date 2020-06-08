@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "nrf52833-dk",
+    "utilities",
     ]
 
 [profile.dev]

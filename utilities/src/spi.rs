@@ -62,7 +62,7 @@ pub use spim0::frequency::FREQUENCY_A as Frequency;
 
 use core::iter::repeat_with;
 
-use crate::gpio::{Floating, Input, Output, Pin, PushPull};
+use crate::hal::gpio::{Floating, Input, Output, Pin, PushPull};
 
 /// Interface to a SPIM instance
 ///
