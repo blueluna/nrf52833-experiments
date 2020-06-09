@@ -19,6 +19,10 @@ cortex-m-rtfm = "0.5"
 embedded-graphics = "0.6"
 profont = "0.4.0"
 rtt-target = { version = "0.2", features = ["cortex-m"] }
+bbqueue = "0.4"
+ieee802154 = { git = "https://github.com/braun-embedded/rust-ieee802.15.4.git", branch = "master" }
+esercom = { git = "https://github.com/blueluna/esercom.git", branch = "master" }
+nrf52-radio-802154 = { git = "https://github.com/blueluna/nrf52-verktyg", features = ["52833"] }
 
 [dependencies.embedded-hal]
 features = ["unproven"]

@@ -3,22 +3,13 @@
 Wrote this app when I built the nrf52833-pac and nrf52833-hal to test some
 subsystems. The board used is the Nordic nRF52833-DK.
 
-## Debug
+## Run
 
-[JLinkGDBServer] from Segger is used to debug, see the `jlinkgdb` shell script
-on how JLinkGDBServer is invoked.
+You can use `cargo embed` to transfer the examples to the board and run them.
 
-Start the GDB server with `jlinkgdb`.
-
-```
-$ ./jlinkgdb
-```
-
-Then run the program
+Just enter the examples directory and use `cargo embed`.
 
 ```
-$ cargo run
+$ cd nrf52833-dk
+$ cargo embed --example blinky
 ```
-
-cargo will use the run definition found in `.cargo/config` to launch `gdb` with
-the `jlink.gdb` script file.
