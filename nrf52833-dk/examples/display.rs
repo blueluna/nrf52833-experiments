@@ -9,7 +9,7 @@ use panic_rtt_target as _;
 
 use rtt_target::{rprintln, rtt_init_print};
 
-use rtfm::app;
+use rtic::app;
 
 use embedded_hal::{
     digital::v2::{InputPin, OutputPin}

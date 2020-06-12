@@ -5,7 +5,7 @@ use panic_rtt_target as _;
 
 use rtt_target::{rprintln, rtt_init_print};
 
-use rtfm::app;
+use rtic::app;
 
 use nrf52833_hal as hal;
 use crate::hal::target as pac;
