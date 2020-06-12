@@ -127,6 +127,11 @@ where
     }
 }
 
+fn port_to_bool(port: crate::hal::gpio::Port) -> bool {
+    use crate::hal::gpio::Port;
+    match port { Port::Port0 => false, Port::Port1 => true }
+}
+
 impl<T> Spim<T>
 where
     T: Instance,
@@ -145,28 +150,28 @@ where
     pub fn new(spim: T, pins: Pins, frequency: Frequency, mode: Mode, orc: u8) -> Self {
         // Select pins
         spim.psel.sck.write(|w| {
-            let w = unsafe { w.pin().bits(pins.sck.pin) };
-            w.port().bit(pins.sck.port).connect().connected()
+            let w = unsafe { w.pin().bits(pins.sck.pin()) };
+            w.port().bit(port_to_bool(pins.sck.port())).connect().connected()
         });
         match pins.mosi {
             Some(mosi) => spim.psel.mosi.write(|w| {
-                let w = unsafe { w.pin().bits(mosi.pin) };
-                w.port().bit(mosi.port).connect().connected()
+                let w = unsafe { w.pin().bits(mosi.pin()) };
+                w.port().bit(port_to_bool(mosi.port())).connect().connected()
             }),
             None => spim.psel.mosi.write(|w| w.connect().disconnected()),
         }
         match pins.miso {
             Some(miso) => spim.psel.miso.write(|w| {
-                let w = unsafe { w.pin().bits(miso.pin) };
-                w.port().bit(miso.port).connect().connected()
+                let w = unsafe { w.pin().bits(miso.pin()) };
+                w.port().bit(port_to_bool(miso.port())).connect().connected()
             }),
             None => spim.psel.miso.write(|w| w.connect().disconnected()),
         }
         match pins.csn {
             Some(cs) => {
                 spim.psel.csn.write(|w| {
-                    let w = unsafe { w.pin().bits(cs.pin) };
-                    w.port().bit(cs.port).connect().connected()
+                    let w = unsafe { w.pin().bits(cs.pin()) };
+                    w.port().bit(port_to_bool(cs.port())).connect().connected()
                 });
                 spim.csnpol.write(|w| w.csnpol().low());
                 spim.iftiming.csndur.write(|w| unsafe { w.csndur().bits(0x1f) });
@@ -175,8 +180,8 @@ where
         }
         match pins.dcx {
             Some(dcx) => spim.pseldcx.write(|w| {
-                let w = unsafe { w.pin().bits(dcx.pin) };
-                w.port().bit(dcx.port).connect().connected()
+                let w = unsafe { w.pin().bits(dcx.pin()) };
+                w.port().bit(port_to_bool(dcx.port())).connect().connected()
             }),
             None => spim.pseldcx.write(|w| w.connect().disconnected()),
         }
