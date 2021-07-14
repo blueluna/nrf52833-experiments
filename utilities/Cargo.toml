@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 cortex-m = "0.6"
-nrf52833-hal = { git = "https://github.com/nrf-rs/nrf-hal.git" }
+nrf52833-hal = "0.12"
 embedded-graphics = "0.6"
 
 [dependencies.embedded-hal]

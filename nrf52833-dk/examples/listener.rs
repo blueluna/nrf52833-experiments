@@ -7,21 +7,21 @@ use rtt_target::{rprintln, rtt_init_print};
 
 use rtic::app;
 
+use crate::hal::pac;
 use nrf52833_hal as hal;
-use crate::hal::target as pac;
 
 use hal::{clocks, gpio, timer::Instance, uarte};
 
 use bbqueue::{self, BBBuffer, ConstBBBuffer};
 
-use nrf52_radio_802154::radio::{Radio, MAX_PACKET_LENGHT};
+use psila_nrf52::radio::{Radio, MAX_PACKET_LENGHT};
 
 // Use a packet buffer that can hold 16 packages
 pub(crate) use bbqueue::consts::U2048 as PacketBufferSize;
 
 static PKT_BUFFER: BBBuffer<PacketBufferSize> = BBBuffer(ConstBBBuffer::new());
 
-#[app(device = crate::hal::target, peripherals = true)]
+#[app(device = crate::hal::pac, peripherals = true)]
 const APP: () = {
     struct Resources {
         uart: uarte::Uarte<pac::UARTE0>,
@@ -75,7 +75,8 @@ const APP: () = {
         radio.receive_prepare();
 
         init::LateResources {
-            uart, radio,
+            uart,
+            radio,
             rx_producer: q_producer,
             rx_consumer: q_consumer,
             timer: cx.device.TIMER0,
@@ -93,14 +94,18 @@ const APP: () = {
                     rprintln!("No room in the buffer");
                     grant.commit(0);
                 } else {
-                    let packet_len = radio.receive_slice(grant.buf());
-                    grant.commit(packet_len);
+                    match radio.receive_slice(grant.buf()) {
+                        Ok(packet_len) => {
+                            grant.commit(packet_len);
+                        }
+                        Err(_) => (),
+                    }
                 }
             }
             Err(_) => {
                 // Drop package
                 let mut buffer = [0u8; MAX_PACKET_LENGHT];
-                radio.receive(&mut buffer);
+                let _ = radio.receive(&mut buffer);
                 rprintln!("Failed to queue packet");
             }
         }

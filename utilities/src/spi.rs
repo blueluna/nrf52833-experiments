@@ -1,8 +1,6 @@
-
-
 /// Send command and data over SPI
 pub trait SpiSendCommandData {
-    /// 
+    ///
     fn send_command_data(&mut self, data: &[u8], command_bytes: u8) -> Result<(), Error>;
 }
 
@@ -55,7 +53,7 @@ impl DmaSlice {
 use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 
-use crate::hal::target::{spim0, SPIM0, SPIM1, SPIM2, SPIM3};
+use crate::hal::pac::{spim0, SPIM0, SPIM1, SPIM2, SPIM3};
 
 pub use embedded_hal::spi::{Mode, Phase, Polarity, MODE_0, MODE_1, MODE_2, MODE_3};
 pub use spim0::frequency::FREQUENCY_A as Frequency;
@@ -121,15 +119,17 @@ impl<T> SpiSendCommandData for Spim<T>
 where
     T: Instance,
 {
-    fn send_command_data(&mut self, data: &[u8], command_bytes: u8) -> Result<(), Error>
-    {
+    fn send_command_data(&mut self, data: &[u8], command_bytes: u8) -> Result<(), Error> {
         self.write_dc(data, command_bytes)
     }
 }
 
 fn port_to_bool(port: crate::hal::gpio::Port) -> bool {
     use crate::hal::gpio::Port;
-    match port { Port::Port0 => false, Port::Port1 => true }
+    match port {
+        Port::Port0 => false,
+        Port::Port1 => true,
+    }
 }
 
 impl<T> Spim<T>
@@ -151,19 +151,28 @@ where
         // Select pins
         spim.psel.sck.write(|w| {
             let w = unsafe { w.pin().bits(pins.sck.pin()) };
-            w.port().bit(port_to_bool(pins.sck.port())).connect().connected()
+            w.port()
+                .bit(port_to_bool(pins.sck.port()))
+                .connect()
+                .connected()
         });
         match pins.mosi {
             Some(mosi) => spim.psel.mosi.write(|w| {
                 let w = unsafe { w.pin().bits(mosi.pin()) };
-                w.port().bit(port_to_bool(mosi.port())).connect().connected()
+                w.port()
+                    .bit(port_to_bool(mosi.port()))
+                    .connect()
+                    .connected()
             }),
             None => spim.psel.mosi.write(|w| w.connect().disconnected()),
         }
         match pins.miso {
             Some(miso) => spim.psel.miso.write(|w| {
                 let w = unsafe { w.pin().bits(miso.pin()) };
-                w.port().bit(port_to_bool(miso.port())).connect().connected()
+                w.port()
+                    .bit(port_to_bool(miso.port()))
+                    .connect()
+                    .connected()
             }),
             None => spim.psel.miso.write(|w| w.connect().disconnected()),
         }
@@ -174,8 +183,10 @@ where
                     w.port().bit(port_to_bool(cs.port())).connect().connected()
                 });
                 spim.csnpol.write(|w| w.csnpol().low());
-                spim.iftiming.csndur.write(|w| unsafe { w.csndur().bits(0x1f) });
-            },
+                spim.iftiming
+                    .csndur
+                    .write(|w| unsafe { w.csndur().bits(0x1f) });
+            }
             None => spim.psel.csn.write(|w| w.connect().disconnected()),
         }
         match pins.dcx {
@@ -224,10 +235,16 @@ where
     }
 
     /// Internal helper function to setup and execute SPIM DMA transfer
-    fn do_spi_dma_transfer_dcx(&mut self, tx: DmaSlice, rx: DmaSlice, command_bytes: u8) -> Result<(), Error> {
+    fn do_spi_dma_transfer_dcx(
+        &mut self,
+        tx: DmaSlice,
+        rx: DmaSlice,
+        command_bytes: u8,
+    ) -> Result<(), Error> {
         // Configure DCX bytes
-        self.0.dcxcnt.write(|w|
-            unsafe { w.bits(command_bytes as u32) });
+        self.0
+            .dcxcnt
+            .write(|w| unsafe { w.bits(command_bytes as u32) });
         self.do_spi_dma_transfer(tx, rx)
     }
 
@@ -295,11 +312,7 @@ where
     ///
     /// This method is deprecated. Consider using `transfer` or `transfer_split`
     #[inline(always)]
-    pub fn read(
-        &mut self,
-        tx_buffer: &[u8],
-        rx_buffer: &mut [u8],
-    ) -> Result<(), Error> {
+    pub fn read(&mut self, tx_buffer: &[u8], rx_buffer: &mut [u8]) -> Result<(), Error> {
         self.transfer_split_uneven(tx_buffer, rx_buffer)
     }
 
@@ -311,10 +324,7 @@ where
     ///
     /// Uses the provided chip select pin to initiate the transaction. Transmits
     /// all bytes in `buffer`, then receives an equal number of bytes.
-    pub fn transfer(
-        &mut self,
-        buffer: &mut [u8],
-    ) -> Result<(), Error> {
+    pub fn transfer(&mut self, buffer: &mut [u8]) -> Result<(), Error> {
         slice_in_ram_or(buffer, Error::DMABufferNotInDataMemory)?;
 
         // Don't return early, as we must reset the CS pin
@@ -392,8 +402,7 @@ where
         // back Nones, then we are done sending and receiving
         //
         // Don't return early, as we must reset the CS pin
-        txi
-            .zip(rxi)
+        txi.zip(rxi)
             .take_while(|(t, r)| t.is_some() && r.is_some())
             // We also turn the slices into either a DmaSlice (if there was data), or a null
             // DmaSlice (if there is no data)
@@ -413,10 +422,7 @@ where
     /// This method uses the provided chip select pin to initiate the
     /// transaction, then transmits all bytes in `tx_buffer`. All incoming
     /// bytes are discarded.
-    pub fn write(
-        &mut self,
-        tx_buffer: &[u8],
-    ) -> Result<(), Error> {
+    pub fn write(&mut self, tx_buffer: &[u8]) -> Result<(), Error> {
         slice_in_ram_or(tx_buffer, Error::DMABufferNotInDataMemory)?;
         self.transfer_split_uneven(tx_buffer, &mut [0u8; 0])
     }
@@ -426,13 +432,13 @@ where
     /// This method uses the provided chip select pin to initiate the
     /// transaction, then transmits all bytes in `tx_buffer`. All incoming
     /// bytes are discarded.
-    pub fn write_dc(
-        &mut self,
-        tx_buffer: &[u8],
-        command_bytes: u8,
-    ) -> Result<(), Error> {
+    pub fn write_dc(&mut self, tx_buffer: &[u8], command_bytes: u8) -> Result<(), Error> {
         slice_in_ram_or(tx_buffer, Error::DMABufferNotInDataMemory)?;
-        self.do_spi_dma_transfer_dcx(DmaSlice::from_slice(tx_buffer), DmaSlice::null(), command_bytes)
+        self.do_spi_dma_transfer_dcx(
+            DmaSlice::from_slice(tx_buffer),
+            DmaSlice::null(),
+            command_bytes,
+        )
     }
 
     /// Return the raw interface to the underlying SPIM peripheral

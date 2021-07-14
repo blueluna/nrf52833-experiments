@@ -10,8 +10,8 @@ edition = "2018"
 
 [dependencies]
 utilities = { path = "../utilities" }
-nrf52833-pac = { git = "https://github.com/nrf-rs/nrf52833-pac.git" }
-nrf52833-hal = { git = "https://github.com/nrf-rs/nrf-hal.git" }
+nrf52833-pac = "0.9"
+nrf52833-hal = "0.12"
 cortex-m = "0.6"
 cortex-m-rt = "0.6"
 panic-rtt-target = { version = "0.1", features = ["cortex-m"] }
@@ -20,9 +20,9 @@ embedded-graphics = "0.6"
 profont = "0.4.0"
 rtt-target = { version = "0.2", features = ["cortex-m"] }
 bbqueue = "0.4"
-ieee802154 = { git = "https://github.com/braun-embedded/rust-ieee802.15.4.git", branch = "master" }
+ieee802154 = "0.3"
 esercom = { git = "https://github.com/blueluna/esercom.git", branch = "master" }
-nrf52-radio-802154 = { git = "https://github.com/blueluna/nrf52-verktyg", features = ["52833"] }
+psila-nrf52 = { git = "https://github.com/blueluna/psila-nrf52.git", features = ["52833"] }
 
 [dependencies.embedded-hal]
 features = ["unproven"]

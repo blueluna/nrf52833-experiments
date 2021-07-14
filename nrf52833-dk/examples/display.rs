@@ -11,29 +11,27 @@ use rtt_target::{rprintln, rtt_init_print};
 
 use rtic::app;
 
-use embedded_hal::{
-    digital::v2::{InputPin, OutputPin}
-};
+use embedded_hal::digital::v2::{InputPin, OutputPin};
 
-use crate::hal::target as pac;
+use crate::hal::pac;
 use nrf52833_hal as hal;
 
-use hal::{clocks, gpio, timer::Instance, uarte, spim};
-use pac::{RTC0, RTC1, TIMER0, TIMER1, UARTE0, SPIM3};
+use hal::{clocks, gpio, spim, timer::Instance, uarte};
+use pac::{RTC0, RTC1, SPIM3, TIMER0, TIMER1, UARTE0};
 
 use embedded_graphics::{
     drawable::Drawable,
     geometry::Point,
-    pixelcolor::{RgbColor, Rgb565},
-    primitives::{Primitive, rectangle::Rectangle},
+    pixelcolor::{Rgb565, RgbColor},
+    primitives::{rectangle::Rectangle, Primitive},
     style::PrimitiveStyleBuilder,
 };
-use embedded_graphics::{ egtext, text_style };
+use embedded_graphics::{egtext, text_style};
 use profont::ProFont12Point;
 
-use st7735s::{Orientation};
+use st7735s::Orientation;
 
-#[app(device = crate::hal::target, peripherals = true)]
+#[app(device = crate::hal::pac, peripherals = true)]
 const APP: () = {
     struct Resources {
         button_1: gpio::Pin<gpio::Input<gpio::PullUp>>,
@@ -46,8 +44,8 @@ const APP: () = {
         led_4: gpio::Pin<gpio::Output<gpio::PushPull>>,
         #[init(false)]
         on_off: bool,
-        rtc_0: hal::rtc::Rtc<RTC0, hal::rtc::Started>,
-        rtc_1: hal::rtc::Rtc<RTC1, hal::rtc::Started>,
+        rtc_0: hal::rtc::Rtc<RTC0>,
+        rtc_1: hal::rtc::Rtc<RTC1>,
         #[init(0)]
         rtc_1_last: u32,
         timer_0: TIMER0,
@@ -56,7 +54,7 @@ const APP: () = {
         timer_1_last: u32,
         uart: uarte::Uarte<UARTE0>,
         delay: hal::Delay,
-        lcd: st7735s::ST7735<spi::Spim<SPIM3>>
+        lcd: st7735s::ST7735<spi::Spim<SPIM3>>,
     }
 
     #[init]
@@ -77,15 +75,27 @@ const APP: () = {
         cx.device.TIMER1.set_periodic();
         cx.device.TIMER1.timer_start(30_000_000u32);
 
-        let mut rtc_0 = hal::rtc::Rtc::new(cx.device.RTC0);
-        let _ = rtc_0.set_prescaler(4095);
-        rtc_0.enable_event(hal::rtc::RtcInterrupt::Tick);
-        rtc_0.enable_interrupt(hal::rtc::RtcInterrupt::Tick, None);
-        let rtc_0 = rtc_0.enable_counter();
+        let rtc_0 = match hal::rtc::Rtc::new(cx.device.RTC0, 4095) {
+            Ok(mut rtc) => {
+                rtc.enable_event(hal::rtc::RtcInterrupt::Tick);
+                rtc.enable_interrupt(hal::rtc::RtcInterrupt::Tick, None);
+                rtc.enable_counter();
+                rtc
+            }
+            Err(_) => {
+                panic!("Failed to initialize RTC");
+            }
+        };
 
-        let mut rtc_1 = hal::rtc::Rtc::new(cx.device.RTC1);
-        let _ = rtc_1.set_prescaler(4095);
-        let rtc_1 = rtc_1.enable_counter();
+        let rtc_1 = match hal::rtc::Rtc::new(cx.device.RTC1, 4095) {
+            Ok(rtc) => {
+                rtc.enable_counter();
+                rtc
+            }
+            Err(_) => {
+                panic!("Failed to initialize RTC");
+            }
+        };
 
         let port0 = gpio::p0::Parts::new(cx.device.P0);
         let button_1 = port0.p0_11.into_pullup_input().degrade();
@@ -130,15 +140,38 @@ const APP: () = {
         );
 
         let delay = hal::Delay::new(cx.core.SYST);
-        let spi = spi::Spim::new(cx.device.SPIM3,
+        let spi = spi::Spim::new(
+            cx.device.SPIM3,
             spi::Pins {
-                sck: port0.p0_27.into_push_pull_output(gpio::Level::Low).degrade(),
-                mosi: Some(port0.p0_26.into_push_pull_output(gpio::Level::Low).degrade()),
+                sck: port0
+                    .p0_27
+                    .into_push_pull_output(gpio::Level::Low)
+                    .degrade(),
+                mosi: Some(
+                    port0
+                        .p0_26
+                        .into_push_pull_output(gpio::Level::Low)
+                        .degrade(),
+                ),
                 miso: None,
-                csn: Some(port0.p0_21.into_push_pull_output(gpio::Level::Low).degrade()),
-                dcx: Some(port0.p0_22.into_push_pull_output(gpio::Level::High).degrade()),
-            }, spim::Frequency::M4, spim::MODE_0, 0);
-        
+                csn: Some(
+                    port0
+                        .p0_21
+                        .into_push_pull_output(gpio::Level::Low)
+                        .degrade(),
+                ),
+                dcx: Some(
+                    port0
+                        .p0_22
+                        .into_push_pull_output(gpio::Level::High)
+                        .degrade(),
+                ),
+            },
+            spim::Frequency::M4,
+            spim::MODE_0,
+            0,
+        );
+
         let lcd = st7735s::ST7735::new(spi, false, true, 80, 160);
 
         rprintln!("... done");
@@ -184,7 +217,7 @@ const APP: () = {
         let _ = cx
             .resources
             .rtc_0
-            .get_event_triggered(hal::rtc::RtcInterrupt::Tick, true);
+            .is_event_triggered(hal::rtc::RtcInterrupt::Tick);
         let timer_last = *cx.resources.timer_1_last;
         let timer_now = cx.resources.timer_1.read_counter();
         let elapsed = timer_now.saturating_sub(timer_last);
@@ -217,16 +250,21 @@ const APP: () = {
         let dy = (st7735s::ST7735_COLS - 80) / 2;
         lcd.set_offset(dx, dy);
         let _ = lcd.set_orientation(Orientation::Landscape);
-        let style = PrimitiveStyleBuilder::new().fill_color(Rgb565::BLACK).build();
+        let style = PrimitiveStyleBuilder::new()
+            .fill_color(Rgb565::BLACK)
+            .build();
         let backdrop = Rectangle::new(Point::new(0, 0), Point::new(160, 81)).into_styled(style);
         let _ = backdrop.draw(lcd);
         let _ = egtext!(
             text = "Rust on nRF52833-DK\n\n",
             top_left = (5, 0),
-            style = text_style!(font = ProFont12Point, text_color = Rgb565::new(0xff, 0x8c, 0x00))
+            style = text_style!(
+                font = ProFont12Point,
+                text_color = Rgb565::new(0xff, 0x8c, 0x00)
+            )
         )
         .draw(lcd);
-        
+
         let _ = write!(uart, "Idle\r\n");
 
         loop {

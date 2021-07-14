@@ -3,46 +3,46 @@
 use crate::extended_enum;
 
 extended_enum!(
-    /// ST7735 instructions.
-    Instruction, u8,
-    NOP => 0x00,
-    SWRESET => 0x01,
-    RDDID => 0x04,
-    RDDST => 0x09,
-    SLPIN => 0x10,
-    SLPOUT => 0x11,
-    PTLON => 0x12,
-    NORON => 0x13,
-    INVOFF => 0x20,
-    INVON => 0x21,
-    DISPOFF => 0x28,
-    DISPON => 0x29,
-    CASET => 0x2A,
-    RASET => 0x2B,
-    RAMWR => 0x2C,
-    RAMRD => 0x2E,
-    PTLAR => 0x30,
-    COLMOD => 0x3A,
-    MADCTL => 0x36,
-    FRMCTR1 => 0xB1,
-    FRMCTR2 => 0xB2,
-    FRMCTR3 => 0xB3,
-    INVCTR => 0xB4,
-    DISSET5 => 0xB6,
-    PWCTR1 => 0xC0,
-    PWCTR2 => 0xC1,
-    PWCTR3 => 0xC2,
-    PWCTR4 => 0xC3,
-    PWCTR5 => 0xC4,
-    VMCTR1 => 0xC5,
-    RDID1 => 0xDA,
-    RDID2 => 0xDB,
-    RDID3 => 0xDC,
-    RDID4 => 0xDD,
-    PWCTR6 => 0xFC,
-    GMCTRP1 => 0xE0,
-    GMCTRN1 => 0xE1,
-    );
+/// ST7735 instructions.
+Instruction, u8,
+NOP => 0x00,
+SWRESET => 0x01,
+RDDID => 0x04,
+RDDST => 0x09,
+SLPIN => 0x10,
+SLPOUT => 0x11,
+PTLON => 0x12,
+NORON => 0x13,
+INVOFF => 0x20,
+INVON => 0x21,
+DISPOFF => 0x28,
+DISPON => 0x29,
+CASET => 0x2A,
+RASET => 0x2B,
+RAMWR => 0x2C,
+RAMRD => 0x2E,
+PTLAR => 0x30,
+COLMOD => 0x3A,
+MADCTL => 0x36,
+FRMCTR1 => 0xB1,
+FRMCTR2 => 0xB2,
+FRMCTR3 => 0xB3,
+INVCTR => 0xB4,
+DISSET5 => 0xB6,
+PWCTR1 => 0xC0,
+PWCTR2 => 0xC1,
+PWCTR3 => 0xC2,
+PWCTR4 => 0xC3,
+PWCTR5 => 0xC4,
+VMCTR1 => 0xC5,
+RDID1 => 0xDA,
+RDID2 => 0xDB,
+RDID3 => 0xDC,
+RDID4 => 0xDD,
+PWCTR6 => 0xFC,
+GMCTRP1 => 0xE0,
+GMCTRN1 => 0xE1,
+);
 
 pub const ST7735_COLS: u16 = 132;
 pub const ST7735_ROWS: u16 = 162;
@@ -52,7 +52,7 @@ use embedded_hal::blocking::delay::DelayMs;
 /// ST7735 driver to connect to TFT displays.
 pub struct ST7735<SPI>
 where
-    SPI: crate::spi::SpiSendCommandData
+    SPI: crate::spi::SpiSendCommandData,
 {
     /// SPI
     spi: SPI,
@@ -81,16 +81,10 @@ extended_enum!(
 
 impl<SPI> ST7735<SPI>
 where
-    SPI: crate::spi::SpiSendCommandData
+    SPI: crate::spi::SpiSendCommandData,
 {
     /// Creates a new driver instance that uses hardware SPI.
-    pub fn new(
-        spi: SPI,
-        rgb: bool,
-        inverted: bool,
-        width: u32,
-        height: u32,
-    ) -> Self {
+    pub fn new(spi: SPI, rgb: bool, inverted: bool, width: u32, height: u32) -> Self {
         ST7735 {
             spi,
             rgb,
@@ -113,10 +107,7 @@ where
         delay.delay_ms(200);
         self.write_command(Instruction::FRMCTR1, &[0x01, 0x2C, 0x2D])?;
         self.write_command(Instruction::FRMCTR2, &[0x01, 0x2C, 0x2D])?;
-        self.write_command(
-            Instruction::FRMCTR3,
-            &[0x01, 0x2C, 0x2D, 0x01, 0x2C, 0x2D],
-        )?;
+        self.write_command(Instruction::FRMCTR3, &[0x01, 0x2C, 0x2D, 0x01, 0x2C, 0x2D])?;
         self.write_command(Instruction::INVCTR, &[0x07])?;
         self.write_command(Instruction::PWCTR1, &[0xA2, 0x02, 0x84])?;
         self.write_command(Instruction::PWCTR2, &[0xC5])?;
@@ -147,8 +138,9 @@ where
             let octets = params.len() + 1;
             spi_data[1..octets].copy_from_slice(params);
             octets
-        }
-        else { 1 };
+        } else {
+            1
+        };
         self.spi
             .send_command_data(&spi_data[..octets], 1)
             .map_err(|_| ())?;
@@ -167,14 +159,20 @@ where
                 offset += 2;
             }
             offset
-        } else { 1 };
+        } else {
+            1
+        };
         self.spi
             .send_command_data(&spi_data[..octets], 1)
             .map_err(|_| ())?;
         Ok(())
     }
 
-    fn write_command_words_iter<P: IntoIterator<Item = u16>>(&mut self, command: Instruction, params: P) -> Result<(), ()> {
+    fn write_command_words_iter<P: IntoIterator<Item = u16>>(
+        &mut self,
+        command: Instruction,
+        params: P,
+    ) -> Result<(), ()> {
         let mut spi_data = [0u8; 32768];
         spi_data[0] = u8::from(command);
         let mut offset = 1;
@@ -194,10 +192,7 @@ where
         if self.rgb {
             self.write_command(Instruction::MADCTL, &[u8::from(orientation)])?;
         } else {
-            self.write_command(
-                Instruction::MADCTL,
-                &[u8::from(orientation) | 0x08],
-            )?;
+            self.write_command(Instruction::MADCTL, &[u8::from(orientation) | 0x08])?;
         }
         Ok(())
     }
@@ -225,7 +220,10 @@ where
         self.write_command_words_iter(Instruction::RAMWR, colors)
     }
 
-    pub fn write_pixels_buffered<P: IntoIterator<Item = u16>>(&mut self, colors: P) -> Result<(), ()> {
+    pub fn write_pixels_buffered<P: IntoIterator<Item = u16>>(
+        &mut self,
+        colors: P,
+    ) -> Result<(), ()> {
         self.write_command_words_iter(Instruction::RAMWR, colors)
     }
 
@@ -257,20 +255,20 @@ where
 
 use embedded_graphics::{
     drawable::Pixel,
+    image::Image,
     pixelcolor::{
         raw::{RawData, RawU16},
         Rgb565,
     },
-    primitives::Rectangle,
-    style::{Styled, PrimitiveStyle},
-    image::Image,
     prelude::*,
+    primitives::Rectangle,
+    style::{PrimitiveStyle, Styled},
     DrawTarget,
 };
 
 impl<SPI> DrawTarget<Rgb565> for ST7735<SPI>
 where
-    SPI: crate::spi::SpiSendCommandData
+    SPI: crate::spi::SpiSendCommandData,
 {
     type Error = ();
 
@@ -281,7 +279,7 @@ where
 
     fn draw_rectangle(
         &mut self,
-        item: &Styled<Rectangle, PrimitiveStyle<Rgb565>>
+        item: &Styled<Rectangle, PrimitiveStyle<Rgb565>>,
     ) -> Result<(), Self::Error> {
         let shape = item.primitive;
         let rect_width = shape.bottom_right.x - item.primitive.top_left.x;
@@ -299,19 +297,18 @@ where
                     shape.bottom_right.y as u16,
                     iter,
                 )
-            },
+            }
             (Some(fill), Some(stroke)) => {
                 let fill_color = RawU16::from(fill).into_inner();
                 let stroke_color = RawU16::from(stroke).into_inner();
                 let iter = (0..rect_size).map(move |i| {
                     if i % rect_width <= item.style.stroke_width as i32
-                    || i % rect_width >= rect_width - item.style.stroke_width as i32
-                    || i <= item.style.stroke_width as i32 * rect_width
-                    || i >= (rect_height - item.style.stroke_width as i32) * rect_width
+                        || i % rect_width >= rect_width - item.style.stroke_width as i32
+                        || i <= item.style.stroke_width as i32 * rect_width
+                        || i >= (rect_height - item.style.stroke_width as i32) * rect_width
                     {
                         stroke_color
-                    }
-                    else {
+                    } else {
                         fill_color
                     }
                 });
@@ -322,21 +319,14 @@ where
                     shape.bottom_right.y as u16,
                     iter,
                 )
-            },
+            }
             // TODO: Draw edges as subrectangles
-            (None, Some(_)) => {
-                self.draw_iter(item)
-            }
-            (None, None) => {
-                self.draw_iter(item)
-            }
+            (None, Some(_)) => self.draw_iter(item),
+            (None, None) => self.draw_iter(item),
         }
     }
 
-    fn draw_image<'a, 'b, I>(
-        &mut self,
-        item: &'a Image<'b, I, Rgb565>
-    ) -> Result<(), Self::Error>
+    fn draw_image<'a, 'b, I>(&mut self, item: &'a Image<'b, I, Rgb565>) -> Result<(), Self::Error>
     where
         &'b I: IntoPixelIter<Rgb565>,
         I: ImageDimensions,
@@ -350,8 +340,8 @@ where
         self.set_pixels_buffered(
             sx,
             sy,
-            ex-1,
-            ey-1,
+            ex - 1,
+            ey - 1,
             item.into_iter().map(|p| RawU16::from(p.1).into_inner()),
         )
     }
