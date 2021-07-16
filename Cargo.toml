@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "microbit",
     "nrf52833-dk",
     "utilities",
     ]

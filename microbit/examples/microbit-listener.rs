@@ -1,7 +1,7 @@
 #![no_main]
 #![no_std]
 
-use nrf52833_dk as _;
+use microbit as _;
 
 use rtic::app;
 
@@ -87,7 +87,7 @@ const APP: () = {
         match queue.grant_exact(MAX_PACKET_LENGHT) {
             Ok(mut grant) => {
                 if grant.buf().len() < MAX_PACKET_LENGHT {
-                    defmt::error!("No room in the buffer");
+                    defmt::warn!("No room in the buffer");
                     grant.commit(0);
                 } else {
                     match radio.receive_slice(grant.buf()) {
@@ -102,7 +102,7 @@ const APP: () = {
                 // Drop package
                 let mut buffer = [0u8; MAX_PACKET_LENGHT];
                 let _ = radio.receive(&mut buffer);
-                defmt::error!("Failed to queue packet");
+                defmt::warn!("Failed to queue packet");
             }
         }
     }
@@ -130,7 +130,7 @@ const APP: () = {
                         let _ = uart.write(&host_packet[..written]);
                     }
                     Err(_) => {
-                        defmt::error!("Failed to encode packet");
+                        defmt::warn!("Failed to encode packet");
                     }
                 }
                 grant.release(packet_length);

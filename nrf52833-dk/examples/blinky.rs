@@ -1,9 +1,7 @@
 #![no_main]
 #![no_std]
 
-use panic_rtt_target as _;
-
-use rtt_target::{rprintln, rtt_init_print};
+use nrf52833_dk as _;
 
 use rtic::app;
 
@@ -44,9 +42,7 @@ const APP: () = {
         cx.device.TIMER0.enable_interrupt();
         cx.device.TIMER0.timer_start(1_000_000u32);
 
-        rtt_init_print!();
-
-        rprintln!("Initialize");
+        defmt::info!("Initialize");
 
         let rtc_0 = match hal::rtc::Rtc::new(cx.device.RTC0, 4095) {
             Ok(mut rtc) => {
@@ -118,7 +114,7 @@ const APP: () = {
 
         match button_4.is_low() {
             Ok(true) => {
-                rprintln!("Button 4");
+                defmt::info!("Button 4");
                 let _ = led_4.set_low();
             }
             Ok(false) => {
@@ -133,7 +129,7 @@ const APP: () = {
         let button_2 = cx.resources.button_2;
         let led_2 = cx.resources.led_2;
 
-        rprintln!("Idle");
+        defmt::info!("Idle");
 
         loop {
             match button_2.is_low() {

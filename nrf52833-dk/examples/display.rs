@@ -5,9 +5,7 @@ use utilities::{spi, st7735s};
 
 use core::fmt::Write;
 
-use panic_rtt_target as _;
-
-use rtt_target::{rprintln, rtt_init_print};
+use nrf52833_dk as _;
 
 use rtic::app;
 
@@ -65,8 +63,7 @@ const APP: () = {
             .set_lfclk_src_external(clocks::LfOscConfiguration::NoExternalNoBypass)
             .start_lfclk();
 
-        rtt_init_print!();
-        rprintln!("Initialize...");
+        defmt::info!("Initialize...");
 
         cx.device.TIMER0.set_periodic();
         cx.device.TIMER0.enable_interrupt();
@@ -174,7 +171,7 @@ const APP: () = {
 
         let lcd = st7735s::ST7735::new(spi, false, true, 80, 160);
 
-        rprintln!("... done");
+        defmt::info!("... done");
 
         init::LateResources {
             timer_0: cx.device.TIMER0,
@@ -201,7 +198,7 @@ const APP: () = {
         let rtc_last = *cx.resources.rtc_1_last;
         let rtc_now = cx.resources.rtc_1.get_counter();
         let elapsed = rtc_now.saturating_sub(rtc_last);
-        rprintln!("Timer 0: {}", elapsed);
+        defmt::info!("Timer 0: {}", elapsed);
 
         if *cx.resources.on_off {
             let _ = cx.resources.led_3.set_low();
@@ -221,7 +218,7 @@ const APP: () = {
         let timer_last = *cx.resources.timer_1_last;
         let timer_now = cx.resources.timer_1.read_counter();
         let elapsed = timer_now.saturating_sub(timer_last);
-        rprintln!("RTC 0: {}", elapsed);
+        defmt::info!("RTC 0: {}", elapsed);
 
         let button_4 = cx.resources.button_4;
         let led_4 = cx.resources.led_4;
