@@ -5,19 +5,11 @@ use microbit as _;
 
 use rtic::app;
 
-use hal::clocks;
-
 use nrf52833_hal as hal;
-
-use psila_data::{
-    application_service::ApplicationServiceHeader,
-    pack::{Pack, PackFixed},
-    security::{SecurityHeader, SecurityLevel},
-};
 
 use aes;
 use ccm::{
-    aead::{generic_array::GenericArray, AeadInPlace, NewAead},
+    aead::{generic_array::GenericArray, AeadInPlace, KeyInit},
     consts::{U13, U16, U4, U8},
     Ccm,
 };
@@ -120,19 +112,39 @@ fn encode(
     }
 }
 
-#[app(device = crate::hal::pac, peripherals = true)]
-const APP: () = {
+#[app(device = nrf52833_pac, peripherals = true)]
+mod app {
+    use crate::hal as hal;
+    use hal::clocks;
+
+    use psila_data::{
+        application_service::ApplicationServiceHeader,
+        pack::{Pack, PackFixed},
+        security::{SecurityHeader, SecurityLevel},
+    };
+
+    #[local]
+    struct LocalResources {}
+
+    #[shared]
+    struct SharedResources {}
     #[init]
-    fn init(cx: init::Context) {
+    fn init(cx: init::Context) -> (SharedResources, LocalResources, init::Monotonics) {
         // Configure to use external clocks, and start them
         let _clocks = clocks::Clocks::new(cx.device.CLOCK)
             .enable_ext_hfosc()
             .set_lfclk_src_synth()
             .start_lfclk();
         defmt::info!("Initialize");
+
+        (
+            SharedResources {},
+            LocalResources {},
+            init::Monotonics(),
+        )
     }
 
-    #[idle(resources = [])]
+    #[idle()]
     fn idle(_cx: idle::Context) -> ! {
         defmt::info!("~~~ Run some tests ~~~");
 
@@ -160,7 +172,7 @@ const APP: () = {
 
             let (payload, mic) = message.split_at(message.len() - MIC_LENGTH);
 
-            match decode(&key, &nonce, payload, mic, &additional_data, &mut output) {
+            match crate::decode(&key, &nonce, payload, mic, &additional_data, &mut output) {
                 Ok(size) => {
                     if output[..size] == clear_text {
                         defmt::info!("CCM Test 1 succeded");
@@ -212,7 +224,7 @@ const APP: () = {
 
             let mut output = [0u8; 128];
 
-            match decode(&key, &nonce, &payload, &mic, &aad, &mut output) {
+            match crate::decode(&key, &nonce, &payload, &mic, &aad, &mut output) {
                 Ok(size) => {
                     if size == 35 {
                         let correct_output = [
@@ -253,7 +265,7 @@ const APP: () = {
             let mut output = [0u8; 128];
             let mut mic = [0u8; 8];
 
-            match encode(&key, &nonce, &message, &mut mic, &aad, &mut output) {
+            match crate::encode(&key, &nonce, &message, &mut mic, &aad, &mut output) {
                 Ok(size) => {
                     if size == 23 {
                         let correct_output = [
@@ -281,4 +293,4 @@ const APP: () = {
         }
         microbit::exit();
     }
-};
+}

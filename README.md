@@ -16,5 +16,5 @@ $ cargo install probe-run
 Enter the directory for the board and run the example.
 ```
 $ cd microbit
-$ cargo run --example microbit-ccmstar
+$ DEFMT_LOG=info cargo run --example microbit-ccmstar
 ```

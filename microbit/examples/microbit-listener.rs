@@ -1,50 +1,46 @@
 #![no_main]
 #![no_std]
 
-use microbit as _;
-
 use rtic::app;
 
-use crate::hal::pac;
-use nrf52833_hal as hal;
+use microbit as _;
 
-use hal::{clocks, gpio, timer::Instance, uarte};
+#[app(device = nrf52833_pac, peripherals = true)]
+mod app {
+    use bbqueue::{self, BBBuffer};
 
-use bbqueue::{self, BBBuffer, ConstBBBuffer};
+    use nrf52833_hal::{clocks, gpio, uarte};
 
-use psila_nrf52::radio::{Radio, MAX_PACKET_LENGHT};
+    use nrf52833_pac as pac;
 
-// Use a packet buffer that can hold 16 packages
-pub(crate) use bbqueue::consts::U2048 as PacketBufferSize;
+    use psila_nrf52::radio::{Radio, MAX_PACKET_LENGHT};
 
-static PKT_BUFFER: BBBuffer<PacketBufferSize> = BBBuffer(ConstBBBuffer::new());
+    // Use a packet buffer that can hold 16 packages
+    const PACKET_BUFFER_SIZE: usize = 2048;
 
-#[app(device = crate::hal::pac, peripherals = true)]
-const APP: () = {
-    struct Resources {
-        uart: uarte::Uarte<pac::UARTE0>,
+    static PKT_BUFFER: BBBuffer<PACKET_BUFFER_SIZE> = BBBuffer::new();
+
+    #[local]
+    struct LocalResources {
         radio: Radio,
-        rx_producer: bbqueue::Producer<'static, PacketBufferSize>,
-        rx_consumer: bbqueue::Consumer<'static, PacketBufferSize>,
-        timer: pac::TIMER0,
+        uart: uarte::Uarte<pac::UARTE0>,
+        rx_producer: bbqueue::Producer<'static, PACKET_BUFFER_SIZE>,
+        rx_consumer: bbqueue::Consumer<'static, PACKET_BUFFER_SIZE>,
     }
 
+    #[shared]
+    struct SharedResources {}
+
     #[init]
-    fn init(cx: init::Context) -> init::LateResources {
+    fn init(cx: init::Context) -> (SharedResources, LocalResources, init::Monotonics) {
+        let port0 = gpio::p0::Parts::new(cx.device.P0);
         // Configure to use external clocks, and start them
         let _clocks = clocks::Clocks::new(cx.device.CLOCK)
             .enable_ext_hfosc()
             .set_lfclk_src_external(clocks::LfOscConfiguration::NoExternalNoBypass)
             .start_lfclk();
 
-        defmt::info!("Initialize");
-
-        cx.device.TIMER0.set_periodic();
-        cx.device.TIMER0.enable_interrupt();
-        cx.device.TIMER0.timer_start(1_000_000u32);
-
-        let port0 = gpio::p0::Parts::new(cx.device.P0);
-        let uart = uarte::Uarte::new(
+        let uarte0 = uarte::Uarte::new(
             cx.device.UARTE0,
             uarte::Pins {
                 txd: port0
@@ -63,6 +59,7 @@ const APP: () = {
             uarte::Parity::EXCLUDED,
             uarte::Baudrate::BAUD115200,
         );
+
         let (q_producer, q_consumer) = PKT_BUFFER.try_split().unwrap();
 
         let mut radio = Radio::new(cx.device.RADIO);
@@ -70,31 +67,32 @@ const APP: () = {
         radio.set_transmission_power(8);
         radio.receive_prepare();
 
-        init::LateResources {
-            uart,
-            radio,
-            rx_producer: q_producer,
-            rx_consumer: q_consumer,
-            timer: cx.device.TIMER0,
-        }
+        (
+            SharedResources {},
+            LocalResources {
+                radio,
+                uart: uarte0,
+                rx_producer: q_producer,
+                rx_consumer: q_consumer,
+            },
+            init::Monotonics(),
+        )
     }
 
-    #[task(binds = RADIO, resources = [radio, rx_producer])]
+    #[task(binds = RADIO, local = [radio, rx_producer])]
     fn radio(cx: radio::Context) {
-        let radio = cx.resources.radio;
-        let queue = cx.resources.rx_producer;
+        let radio = cx.local.radio;
+        let queue = cx.local.rx_producer;
 
         match queue.grant_exact(MAX_PACKET_LENGHT) {
             Ok(mut grant) => {
                 if grant.buf().len() < MAX_PACKET_LENGHT {
-                    defmt::warn!("No room in the buffer");
                     grant.commit(0);
                 } else {
-                    match radio.receive_slice(grant.buf()) {
-                        Ok(packet_len) => {
-                            grant.commit(packet_len);
-                        }
-                        Err(_) => (),
+                    if let Ok(packet_len) = radio.receive_slice(grant.buf()) {
+                        grant.commit(packet_len);
+                    } else {
+                        grant.commit(0);
                     }
                 }
             }
@@ -102,21 +100,17 @@ const APP: () = {
                 // Drop package
                 let mut buffer = [0u8; MAX_PACKET_LENGHT];
                 let _ = radio.receive(&mut buffer);
-                defmt::warn!("Failed to queue packet");
             }
         }
     }
 
-    #[task(binds = TIMER0, resources = [timer])]
-    fn timer(cx: timer::Context) {
-        cx.resources.timer.timer_reset_event();
-    }
-
-    #[idle(resources = [rx_consumer, uart])]
+    #[idle(local = [rx_consumer, uart])]
     fn idle(cx: idle::Context) -> ! {
         let mut host_packet = [0u8; MAX_PACKET_LENGHT * 2];
-        let queue = cx.resources.rx_consumer;
-        let uart = cx.resources.uart;
+        let queue = cx.local.rx_consumer;
+        let uarte = cx.local.uart;
+
+        defmt::info!("~ listening ~");
 
         loop {
             if let Ok(grant) = queue.read() {
@@ -127,14 +121,14 @@ const APP: () = {
                     &mut host_packet,
                 ) {
                     Ok(written) => {
-                        let _ = uart.write(&host_packet[..written]);
+                        uarte.write(&host_packet[..written]).unwrap();
                     }
                     Err(_) => {
-                        defmt::warn!("Failed to encode packet");
+                        defmt::info!("Failed to encode packet");
                     }
                 }
                 grant.release(packet_length);
             }
         }
     }
-};
+}

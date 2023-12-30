@@ -2,8 +2,10 @@
 
 use core::sync::atomic::{AtomicUsize, Ordering};
 
-use defmt_rtt as _;
+use defmt_rtt as _; // global logger
 use panic_probe as _;
+// TODO(5) adjust HAL import
+// use some_hal as _; // memory layout
 
 defmt::timestamp! {
     "{=u64}", {
