@@ -34,6 +34,7 @@ mod app {
     #[init]
     fn init(cx: init::Context) -> (SharedResources, LocalResources, init::Monotonics) {
         let port0 = gpio::p0::Parts::new(cx.device.P0);
+        let port1 = gpio::p1::Parts::new(cx.device.P1);
         // Configure to use external clocks, and start them
         let _clocks = clocks::Clocks::new(cx.device.CLOCK)
             .enable_ext_hfosc()
@@ -47,14 +48,9 @@ mod app {
                     .p0_06
                     .into_push_pull_output(gpio::Level::High)
                     .degrade(),
-                rxd: port0.p0_08.into_floating_input().degrade(),
-                cts: Some(port0.p0_07.into_floating_input().degrade()),
-                rts: Some(
-                    port0
-                        .p0_05
-                        .into_push_pull_output(gpio::Level::High)
-                        .degrade(),
-                ),
+                rxd: port1.p1_08.into_floating_input().degrade(),
+                cts: None,
+                rts: None,
             },
             uarte::Parity::EXCLUDED,
             uarte::Baudrate::BAUD115200,
@@ -124,7 +120,7 @@ mod app {
                         uarte.write(&host_packet[..written]).unwrap();
                     }
                     Err(_) => {
-                        defmt::info!("Failed to encode packet");
+                        defmt::warn!("Failed to encode packet");
                     }
                 }
                 grant.release(packet_length);
