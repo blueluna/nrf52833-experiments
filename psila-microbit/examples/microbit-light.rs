@@ -511,13 +511,20 @@ mod app {
 
     #[task(shared = [radio], local = [tx_consumer])]
     fn radio_tx(mut cx: radio_tx::Context) {
+        const NO_CCA_MARKER: u8 = 0x80;
         let queue = cx.local.tx_consumer;
         cx.shared.radio.lock(|radio| {
             if !radio.is_tx_busy() {
                 if let Ok(grant) = queue.read() {
-                    let packet_length = grant[0] as usize;
+                    let no_cca = (grant[0] & NO_CCA_MARKER) == NO_CCA_MARKER;
+                    let packet_length = (grant[0] & 0x7f) as usize;
                     let data = &grant[1..=packet_length];
-                    let _ = radio.queue_transmission(data);
+                    if no_cca {
+                        let _ = radio.queue_transmission_no_cca(data);
+                    }
+                    else {
+                        let _ = radio.queue_transmission(data);
+                    }
                     grant.release(packet_length + 1);
                 }
                 let _ = radio_rx::spawn();
