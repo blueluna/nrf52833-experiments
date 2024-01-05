@@ -1,11 +1,11 @@
 #![no_main]
 #![no_std]
 
-use microbit as _;
+use psila_microbit as _;
 
 use rtic::app;
 
-use nrf52833_hal as hal;
+use microbit::hal as hal;
 
 use aes;
 use ccm::{
@@ -112,7 +112,7 @@ fn encode(
     }
 }
 
-#[app(device = nrf52833_pac, peripherals = true)]
+#[app(device = microbit::pac, peripherals = true)]
 mod app {
     use crate::hal as hal;
     use hal::clocks;
@@ -291,6 +291,6 @@ mod app {
                 }
             }
         }
-        microbit::exit();
+        psila_microbit::exit();
     }
 }

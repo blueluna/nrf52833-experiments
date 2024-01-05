@@ -1,0 +1,5 @@
+[env]
+DEFMT_LOG = "info"
+
+[target.thumbv7em-none-eabihf]
+runner = ["probe-run", "--probe", "0d28:0204", "--chip", "nRF52833_xxAA", "--log-format", "{t} [{L}] {s}"]

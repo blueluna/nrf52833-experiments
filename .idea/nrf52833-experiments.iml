@@ -7,6 +7,8 @@
       <sourceFolder url="file://$MODULE_DIR$/nrf52833-dk/examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/nrf52833-dk/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/utilities/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/psila-microbit/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/psila-microbit/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />

@@ -3,15 +3,16 @@
 
 use rtic::app;
 
-use microbit as _;
+use psila_microbit as _;
 
-#[app(device = nrf52833_pac, peripherals = true)]
+#[app(device = microbit::pac, peripherals = true)]
 mod app {
     use bbqueue::{self, BBBuffer};
 
-    use nrf52833_hal::{clocks, gpio, uarte};
+    use microbit::pac as pac;
+    use microbit::hal as hal;
 
-    use nrf52833_pac as pac;
+    use hal::{clocks, gpio, uarte};
 
     use psila_nrf52::radio::{Radio, MAX_PACKET_LENGHT};
 
@@ -59,7 +60,7 @@ mod app {
         let (q_producer, q_consumer) = PKT_BUFFER.try_split().unwrap();
 
         let mut radio = Radio::new(cx.device.RADIO);
-        radio.set_channel(15);
+        radio.set_channel(11);
         radio.set_transmission_power(8);
         radio.receive_prepare();
 
@@ -111,6 +112,7 @@ mod app {
         loop {
             if let Ok(grant) = queue.read() {
                 let packet_length = grant[0] as usize;
+                defmt::info!("~ receive {} ~", packet_length);
                 match esercom::com_encode(
                     esercom::MessageType::RadioReceive,
                     &grant[1..packet_length],
